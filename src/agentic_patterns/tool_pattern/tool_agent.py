@@ -51,7 +51,7 @@ class ToolAgent:
     def __init__(
         self,
         tools: Tool | list[Tool],
-        model: str = "llama3-groq-70b-8192-tool-use-preview",
+        model: str = "llama-3.3-70b-versatile",
     ) -> None:
         self.client = Groq()
         self.model = model
@@ -69,7 +69,10 @@ class ToolAgent:
 
     def process_tool_calls(self, tool_calls_content: list) -> dict:
         """
-        Processes each tool call, validates arguments, executes the tools, and collects results.
+        Processes each tool call:
+         1. validates arguments, 
+         2. executes the tools, 
+         3. and collects results.
 
         Args:
             tool_calls_content (list): List of strings, each representing a tool call in JSON format.
@@ -81,20 +84,25 @@ class ToolAgent:
         for tool_call_str in tool_calls_content:
             tool_call = json.loads(tool_call_str)
             tool_name = tool_call["name"]
+
+            # if the tool name is not in the tools_dict, skip the tool call
+            if tool_name not in self.tools_dict:
+                return 
             tool = self.tools_dict[tool_name]
 
             print(Fore.GREEN + f"\nUsing Tool: {tool_name}")
 
-            # Validate and execute the tool call
+            # 1.Validate  tool call (if the parameter type matches the expected type)
             validated_tool_call = validate_arguments(
                 tool_call, json.loads(tool.fn_signature)
             )
             print(Fore.GREEN + f"\nTool call dict: \n{validated_tool_call}")
 
+            # 2. Execute the tool call 
             result = tool.run(**validated_tool_call["arguments"])
             print(Fore.GREEN + f"\nTool result: \n{result}")
 
-            # Store the result using the tool call ID
+            # 3. Store the result using the tool call ID
             observations[validated_tool_call["id"]] = result
 
         return observations
@@ -105,7 +113,7 @@ class ToolAgent:
     ) -> str:
         """
         Handles the full process of interacting with the language model and executing a tool based on user input.
-
+        This is a full React loop with: thought --> action --> observation 
         Args:
             user_msg (str): The user's message that prompts the tool agent to act.
 
@@ -114,6 +122,7 @@ class ToolAgent:
         """
         user_prompt = build_prompt_structure(prompt=user_msg, role="user")
 
+        # 1. Define System Prompt with Tool Call Signatures
         tool_chat_history = ChatHistory(
             [
                 build_prompt_structure(
@@ -123,17 +132,25 @@ class ToolAgent:
                 user_prompt,
             ]
         )
+
+        # 2. Step 2: Tool call response from LLM
+        # User prompt
         agent_chat_history = ChatHistory([user_prompt])
 
         tool_call_response = completions_create(
             self.client, messages=tool_chat_history, model=self.model
         )
+
+        # 3. Step 3: Extract tool calls from xml tags and execute them
         tool_calls = extract_tag_content(str(tool_call_response), "tool_call")
 
+        # Execute tool calls (if any)
         if tool_calls.found:
             observations = self.process_tool_calls(tool_calls.content)
-            update_chat_history(
-                agent_chat_history, f'f"Observation: {observations}"', "user"
-            )
+            if observations:    
+                update_chat_history(
+                    agent_chat_history, f'f"Observation: {observations}"', "user"
+                )
 
+        # 4. Step 4: Generate response from LLM given observations from tool calls
         return completions_create(self.client, agent_chat_history, self.model)

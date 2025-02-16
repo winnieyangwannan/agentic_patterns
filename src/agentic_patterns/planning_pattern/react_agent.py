@@ -4,7 +4,6 @@ import re
 from colorama import Fore
 from dotenv import load_dotenv
 from groq import Groq
-
 from agentic_patterns.tool_pattern.tool import Tool
 from agentic_patterns.tool_pattern.tool import validate_arguments
 from agentic_patterns.utils.completions import build_prompt_structure

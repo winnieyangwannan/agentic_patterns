@@ -4,7 +4,7 @@ from typing import Callable
 
 def get_fn_signature(fn: Callable) -> dict:
     """
-    Generates the signature for a given function.
+    This function is used to extract metadata about a Python function and format it in a specific dictionary structure.
 
     Args:
         fn (Callable): The function whose signature needs to be extracted.
