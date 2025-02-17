@@ -85,7 +85,7 @@ class ToolAgent:
             tool_call = json.loads(tool_call_str)
             tool_name = tool_call["name"]
 
-            # if the tool name is not in the tools_dict, skip the tool call
+            # 0. if the tool name is not in the tools_dict, skip the tool call
             if tool_name not in self.tools_dict:
                 return 
             tool = self.tools_dict[tool_name]
